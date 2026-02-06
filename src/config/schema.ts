@@ -1,6 +1,11 @@
 import { CHANNEL_IDS } from "../channels/registry.js";
 import { VERSION } from "../version.js";
 import { OpenClawSchema } from "./zod-schema.js";
+import { sensitive } from "./zod-schema.sensitive.js";
+import { z } from "zod";
+import { createSubsystemLogger } from "../logging/subsystem.js";
+
+const log = createSubsystemLogger("schema");
 
 export type ConfigUiHint = {
   label?: string;
@@ -1058,6 +1063,41 @@ function stripChannelSchema(schema: ConfigSchema): ConfigSchema {
   return next;
 }
 
+function mapSensitivePaths(
+  schema: z.ZodTypeAny,
+  registry: Map<z.ZodTypeAny, any>,
+  path: string,
+  hints: ConfigUiHints
+): ConfigUiHints {
+  let next = { ...hints };
+  let currentSchema = schema;
+  let isSensitive = registry.has(currentSchema);
+
+    while (
+    currentSchema instanceof z.ZodOptional || 
+    currentSchema instanceof z.ZodNullable
+  ) {
+      currentSchema = currentSchema.unwrap();
+		isSensitive ||= registry.has(currentSchema);
+  }
+
+  if (isSensitive) {
+    next[path] = { ...next[path], sensitive: true };
+  } else if (isSensitivePath(path) && !next[path]?.sensitive && !path.endsWith("axTokens") && !path.endsWith("File")) {
+	log.warn(`possibly sensitive key found: (${path})`);
+  }
+
+  if (currentSchema instanceof z.ZodObject) {
+    const shape = currentSchema.shape;
+    for (const key in shape) {
+      const nextPath = path ? `${path}.${key}` : key;
+      next = mapSensitivePaths(shape[key], registry, nextPath, next);
+    }
+  }
+  
+  return next;
+}
+
 function buildBaseConfigSchema(): ConfigSchemaResponse {
   if (cachedBase) {
     return cachedBase;
@@ -1067,7 +1107,7 @@ function buildBaseConfigSchema(): ConfigSchemaResponse {
     unrepresentable: "any",
   });
   schema.title = "OpenClawConfig";
-  const hints = applySensitiveHints(buildBaseHints());
+  const hints = mapSensitivePaths(OpenClawSchema, sensitive, "", applySensitiveHints(buildBaseHints()));
   const next = {
     schema: stripChannelSchema(schema),
     uiHints: hints,

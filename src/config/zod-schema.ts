@@ -11,6 +11,7 @@ import {
   SessionSchema,
   SessionSendPolicySchema,
 } from "./zod-schema.session.js";
+import { sensitive } from "./zod-schema.sensitive.js";
 
 const BrowserSnapshotDefaultsSchema = z
   .object({
@@ -295,7 +296,7 @@ export const OpenClawSchema = z
       .object({
         enabled: z.boolean().optional(),
         path: z.string().optional(),
-        token: z.string().optional(),
+        token: z.string().optional().register(sensitive, true),
         maxBodyBytes: z.number().int().positive().optional(),
         presets: z.array(z.string()).optional(),
         transformsDir: z.string().optional(),
@@ -387,8 +388,8 @@ export const OpenClawSchema = z
         auth: z
           .object({
             mode: z.union([z.literal("token"), z.literal("password")]).optional(),
-            token: z.string().optional(),
-            password: z.string().optional(),
+            token: z.string().optional().register(sensitive, true),
+            password: z.string().optional().register(sensitive, true),
             allowTailscale: z.boolean().optional(),
           })
           .strict()
@@ -405,8 +406,8 @@ export const OpenClawSchema = z
           .object({
             url: z.string().optional(),
             transport: z.union([z.literal("ssh"), z.literal("direct")]).optional(),
-            token: z.string().optional(),
-            password: z.string().optional(),
+            token: z.string().optional().register(sensitive, true),
+            password: z.string().optional().register(sensitive, true),
             tlsFingerprint: z.string().optional(),
             sshTarget: z.string().optional(),
             sshIdentity: z.string().optional(),
