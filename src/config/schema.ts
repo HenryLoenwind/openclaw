@@ -1107,7 +1107,7 @@ function buildBaseConfigSchema(): ConfigSchemaResponse {
     unrepresentable: "any",
   });
   schema.title = "OpenClawConfig";
-  const hints = mapSensitivePaths(OpenClawSchema, sensitive, "", applySensitiveHints(buildBaseHints()));
+  const hints = mapSensitivePaths(OpenClawSchema, sensitive, "", buildBaseHints());
   const next = {
     schema: stripChannelSchema(schema),
     uiHints: hints,
