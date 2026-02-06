@@ -1063,19 +1063,14 @@ function stripChannelSchema(schema: ConfigSchema): ConfigSchema {
   return next;
 }
 
-function mapSensitivePaths(
-  schema: z.ZodTypeAny,
-  registry: Map<z.ZodTypeAny, any>,
-  path: string,
-  hints: ConfigUiHints,
-): ConfigUiHints {
+function mapSensitivePaths(schema: z.ZodType, path: string, hints: ConfigUiHints): ConfigUiHints {
   let next = { ...hints };
-  let currentSchema = schema;
-  let isSensitive = registry.has(currentSchema);
+  let currentSchema: unknown = schema;
+  let isSensitive = sensitive.has(schema);
 
   while (currentSchema instanceof z.ZodOptional || currentSchema instanceof z.ZodNullable) {
+    isSensitive ||= sensitive.has(currentSchema.unwrap());
     currentSchema = currentSchema.unwrap();
-    isSensitive ||= registry.has(currentSchema);
   }
 
   if (isSensitive) {
@@ -1094,7 +1089,7 @@ function mapSensitivePaths(
     const shape = currentSchema.shape;
     for (const key in shape) {
       const nextPath = path ? `${path}.${key}` : key;
-      next = mapSensitivePaths(shape[key], registry, nextPath, next);
+      next = mapSensitivePaths(shape[key], nextPath, next);
     }
   }
 
@@ -1110,7 +1105,7 @@ function buildBaseConfigSchema(): ConfigSchemaResponse {
     unrepresentable: "any",
   });
   schema.title = "OpenClawConfig";
-  const hints = mapSensitivePaths(OpenClawSchema, sensitive, "", buildBaseHints());
+  const hints = mapSensitivePaths(OpenClawSchema, "", buildBaseHints());
   const next = {
     schema: stripChannelSchema(schema),
     uiHints: hints,

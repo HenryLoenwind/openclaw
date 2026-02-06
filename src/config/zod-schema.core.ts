@@ -49,7 +49,7 @@ export const ModelDefinitionSchema = z
 export const ModelProviderSchema = z
   .object({
     baseUrl: z.string().min(1),
-    apiKey: z.string().optional().register(sensitive, true),
+    apiKey: z.string().optional().register(sensitive),
     auth: z
       .union([z.literal("api-key"), z.literal("aws-sdk"), z.literal("oauth"), z.literal("token")])
       .optional(),
@@ -181,7 +181,7 @@ export const TtsConfigSchema = z
       .optional(),
     elevenlabs: z
       .object({
-        apiKey: z.string().optional().register(sensitive, true),
+        apiKey: z.string().optional().register(sensitive),
         baseUrl: z.string().optional(),
         voiceId: z.string().optional(),
         modelId: z.string().optional(),
@@ -203,7 +203,7 @@ export const TtsConfigSchema = z
       .optional(),
     openai: z
       .object({
-        apiKey: z.string().optional().register(sensitive, true),
+        apiKey: z.string().optional().register(sensitive),
         model: z.string().optional(),
         voice: z.string().optional(),
       })

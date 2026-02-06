@@ -18,20 +18,25 @@ export const REDACTED_SENTINEL = "__OPENCLAW_REDACTED__";
  * 3. Fallback to regex-based `isSensitivePath()` from schema.ts
  */
 function lookupSensitive(dotPath: string, hints?: ConfigUiHints): boolean {
-  if (!hints) return isSensitivePath(dotPath);
+  if (!hints) {
+    return isSensitivePath(dotPath);
+  }
 
   const direct = hints[dotPath];
-  if (direct?.sensitive !== undefined) return direct.sensitive;
+  if (direct?.sensitive !== undefined) {
+    return direct.sensitive;
+  }
 
   // Wildcard: replace numeric segments (array indices) with *
   const wildcard = dotPath.replace(/(?<=\.)(\d+)(?=\.|$)/g, "*");
   if (wildcard !== dotPath) {
     const wHint = hints[wildcard];
-    if (wHint?.sensitive !== undefined) return wHint.sensitive;
+    if (wHint?.sensitive !== undefined) {
+      return wHint.sensitive;
+    }
   }
 
-  // Fallback to regex for paths not covered by hints
-  return isSensitivePath(dotPath);
+  return false;
 }
 
 /**
