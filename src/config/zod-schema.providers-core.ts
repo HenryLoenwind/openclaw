@@ -320,7 +320,7 @@ export const DiscordAccountSchema = z
     pluralkit: z
       .object({
         enabled: z.boolean().optional(),
-        token: z.string().optional(),
+        token: z.string().optional().register(sensitive, true),
       })
       .strict()
       .optional(),

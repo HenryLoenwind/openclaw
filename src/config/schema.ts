@@ -1083,7 +1083,8 @@ function mapSensitivePaths(
 
   if (isSensitive) {
     next[path] = { ...next[path], sensitive: true };
-  } else if (isSensitivePath(path) && !next[path]?.sensitive && !path.endsWith("axTokens") && !path.endsWith("File")) {
+  } else if (isSensitivePath(path) && !next[path]?.sensitive && !path.endsWith("axTokens")
+	&& !path.endsWith("File") && !path.endsWith("TokenReadOnly")) {
 	log.warn(`possibly sensitive key found: (${path})`);
   }
 

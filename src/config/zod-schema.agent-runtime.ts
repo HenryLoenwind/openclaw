@@ -179,7 +179,7 @@ export const ToolsWebSearchSchema = z
     cacheTtlMinutes: z.number().nonnegative().optional(),
     perplexity: z
       .object({
-        apiKey: z.string().optional(),
+        apiKey: z.string().optional().register(sensitive, true),
         baseUrl: z.string().optional(),
         model: z.string().optional(),
       })
