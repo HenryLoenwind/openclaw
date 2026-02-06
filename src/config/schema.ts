@@ -1,9 +1,9 @@
+import { z } from "zod";
 import { CHANNEL_IDS } from "../channels/registry.js";
+import { createSubsystemLogger } from "../logging/subsystem.js";
 import { VERSION } from "../version.js";
 import { OpenClawSchema } from "./zod-schema.js";
 import { sensitive } from "./zod-schema.sensitive.js";
-import { z } from "zod";
-import { createSubsystemLogger } from "../logging/subsystem.js";
 
 const log = createSubsystemLogger("schema");
 
@@ -1067,25 +1067,27 @@ function mapSensitivePaths(
   schema: z.ZodTypeAny,
   registry: Map<z.ZodTypeAny, any>,
   path: string,
-  hints: ConfigUiHints
+  hints: ConfigUiHints,
 ): ConfigUiHints {
   let next = { ...hints };
   let currentSchema = schema;
   let isSensitive = registry.has(currentSchema);
 
-    while (
-    currentSchema instanceof z.ZodOptional || 
-    currentSchema instanceof z.ZodNullable
-  ) {
-      currentSchema = currentSchema.unwrap();
-		isSensitive ||= registry.has(currentSchema);
+  while (currentSchema instanceof z.ZodOptional || currentSchema instanceof z.ZodNullable) {
+    currentSchema = currentSchema.unwrap();
+    isSensitive ||= registry.has(currentSchema);
   }
 
   if (isSensitive) {
     next[path] = { ...next[path], sensitive: true };
-  } else if (isSensitivePath(path) && !next[path]?.sensitive && !path.endsWith("axTokens")
-	&& !path.endsWith("File") && !path.endsWith("TokenReadOnly")) {
-	log.warn(`possibly sensitive key found: (${path})`);
+  } else if (
+    isSensitivePath(path) &&
+    !next[path]?.sensitive &&
+    !path.endsWith("axTokens") &&
+    !path.endsWith("File") &&
+    !path.endsWith("TokenReadOnly")
+  ) {
+    log.warn(`possibly sensitive key found: (${path})`);
   }
 
   if (currentSchema instanceof z.ZodObject) {
@@ -1095,7 +1097,7 @@ function mapSensitivePaths(
       next = mapSensitivePaths(shape[key], registry, nextPath, next);
     }
   }
-  
+
   return next;
 }
 

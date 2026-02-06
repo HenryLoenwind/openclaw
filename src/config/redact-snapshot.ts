@@ -51,7 +51,11 @@ function redactObject(obj: unknown, hints?: ConfigUiHints, prefix = ""): unknown
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     const dotPath = prefix ? `${prefix}.${key}` : key;
-    if (lookupSensitive(dotPath, hints) && typeof value === "string" && !/^\$\{[^}]*\}$/.test(value.trim())) {
+    if (
+      lookupSensitive(dotPath, hints) &&
+      typeof value === "string" &&
+      !/^\$\{[^}]*\}$/.test(value.trim())
+    ) {
       result[key] = REDACTED_SENTINEL;
     } else if (typeof value === "object" && value !== null) {
       result[key] = redactObject(value, hints, dotPath);
