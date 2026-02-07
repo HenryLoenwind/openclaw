@@ -12,7 +12,11 @@ import {
 } from "../../config/config.js";
 import { applyLegacyMigrations } from "../../config/legacy.js";
 import { applyMergePatch } from "../../config/merge-patch.js";
-import { redactConfigSnapshot, restoreRedactedValues } from "../../config/redact-snapshot.js";
+import {
+  redactConfigObject,
+  redactConfigSnapshot,
+  restoreRedactedValues,
+} from "../../config/redact-snapshot.js";
 import { buildConfigSchema, type ConfigSchemaResponse } from "../../config/schema.js";
 import {
   formatDoctorNonInteractiveHint,
@@ -202,7 +206,7 @@ export const configHandlers: GatewayRequestHandlers = {
       {
         ok: true,
         path: CONFIG_PATH,
-        config: restored,
+        config: redactConfigObject(restored, schemaSet.uiHints),
       },
       undefined,
     );
@@ -319,7 +323,7 @@ export const configHandlers: GatewayRequestHandlers = {
       {
         ok: true,
         path: CONFIG_PATH,
-        config: validated.config,
+        config: redactConfigObject(validated.config, schemaPatch.uiHints),
         restart,
         sentinel: {
           path: sentinelPath,
@@ -422,7 +426,7 @@ export const configHandlers: GatewayRequestHandlers = {
       {
         ok: true,
         path: CONFIG_PATH,
-        config: validated.config,
+        config: redactConfigObject(validated.config, schemaApply.uiHints),
         restart,
         sentinel: {
           path: sentinelPath,

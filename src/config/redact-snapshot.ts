@@ -123,6 +123,15 @@ function redactRawText(raw: string, config: unknown, hints?: ConfigUiHints): str
  * When `uiHints` are provided, sensitivity is determined from the schema hints.
  * Without hints, falls back to regex-based detection via `isSensitivePath()`.
  */
+/**
+ * Redact sensitive fields from a plain config object (not a full snapshot).
+ * Used by write endpoints (config.set, config.patch, config.apply) to avoid
+ * leaking credentials in their responses.
+ */
+export function redactConfigObject<T>(value: T, uiHints?: ConfigUiHints): T {
+  return redactObject(value, uiHints) as T;
+}
+
 export function redactConfigSnapshot(
   snapshot: ConfigFileSnapshot,
   uiHints?: ConfigUiHints,
