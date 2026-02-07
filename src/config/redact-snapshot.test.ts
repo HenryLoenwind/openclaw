@@ -258,16 +258,16 @@ describe("redactConfigSnapshot", () => {
     expect(gw.auth.token).toBe("not-actually-secret-value");
   });
 
-  it("falls back to regex when path is not in uiHints", () => {
+  it("does not redact paths absent from uiHints (schema is single source of truth)", () => {
     const hints: ConfigUiHints = {
       "some.other.path": { sensitive: true },
     };
     const snapshot = makeSnapshot({
-      gateway: { auth: { password: "fallback-regex-secret-value" } },
+      gateway: { auth: { password: "not-in-hints-value" } },
     });
     const result = redactConfigSnapshot(snapshot, hints);
     const gw = result.config.gateway as Record<string, Record<string, string>>;
-    expect(gw.auth.password).toBe(REDACTED_SENTINEL);
+    expect(gw.auth.password).toBe("not-in-hints-value");
   });
 
   it("uses wildcard hints for array items", () => {

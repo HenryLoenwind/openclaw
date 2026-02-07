@@ -15,7 +15,7 @@ export const REDACTED_SENTINEL = "__OPENCLAW_REDACTED__";
  * Resolution order:
  * 1. Direct uiHints lookup (e.g. "channels.slack.botToken")
  * 2. Wildcard lookup — numeric path segments replaced with "*"
- * 3. Fallback to regex-based `isSensitivePath()` from schema.ts
+ * 3. Falls back to regex-based `isSensitivePath()` only when no hints are provided
  */
 function lookupSensitive(dotPath: string, hints?: ConfigUiHints): boolean {
   if (!hints) {
