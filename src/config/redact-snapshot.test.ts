@@ -272,7 +272,7 @@ describe("redactConfigSnapshot", () => {
 
   it("uses wildcard hints for array items", () => {
     const hints: ConfigUiHints = {
-      "channels.slack.accounts.*.botToken": { sensitive: true },
+      "channels.slack.accounts[].botToken": { sensitive: true },
     };
     const snapshot = makeSnapshot({
       channels: {
@@ -444,7 +444,7 @@ describe("restoreRedactedValues", () => {
 
   it("restores array items using wildcard uiHints", () => {
     const hints: ConfigUiHints = {
-      "channels.slack.accounts.*.botToken": { sensitive: true },
+      "channels.slack.accounts[].botToken": { sensitive: true },
     };
     const incoming = {
       channels: {
