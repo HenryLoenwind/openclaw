@@ -88,7 +88,12 @@ function collectSensitiveValues(obj: unknown, hints?: ConfigUiHints, prefix = ""
   }
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     const dotPath = prefix ? `${prefix}.${key}` : key;
-    if (lookupSensitive(dotPath, hints) && typeof value === "string" && value.length > 0) {
+    if (
+      lookupSensitive(dotPath, hints) &&
+      typeof value === "string" &&
+      value.length > 0 &&
+      !/^\$\{[^}]*\}$/.test(value.trim())
+    ) {
       values.push(value);
     } else if (typeof value === "object" && value !== null) {
       values.push(...collectSensitiveValues(value, hints, dotPath));
