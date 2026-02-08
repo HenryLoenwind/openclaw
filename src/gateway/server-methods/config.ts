@@ -366,7 +366,8 @@ export const configHandlers: GatewayRequestHandlers = {
       respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, parsedRes.error));
       return;
     }
-    const validated = validateConfigObjectWithPlugins(parsedRes.parsed);
+	const restored = restoreRedactedValues(parsedRes.parsed, snapshot.config, schemaPatch.uiHints);
+    const validated = validateConfigObjectWithPlugins(restored);
     if (!validated.ok) {
       respond(
         false,
@@ -378,12 +379,7 @@ export const configHandlers: GatewayRequestHandlers = {
       return;
     }
     const schemaApply = loadSchemaWithPlugins();
-    const restoredApply = restoreRedactedValues(
-      validated.config,
-      snapshot.config,
-      schemaApply.uiHints,
-    ) as typeof validated.config;
-    await writeConfigFile(restoredApply);
+    await writeConfigFile(validated);
 
     const sessionKey =
       typeof (params as { sessionKey?: unknown }).sessionKey === "string"
