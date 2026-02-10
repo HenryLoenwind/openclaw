@@ -17,7 +17,7 @@ import {
   redactConfigSnapshot,
   restoreRedactedValues,
 } from "../../config/redact-snapshot.js";
-import { buildConfigSchema } from "../../config/schema.js";
+import { buildConfigSchema, type ConfigSchemaResponse } from "../../config/schema.js";
 import {
   formatDoctorNonInteractiveHint,
   type RestartSentinelPayload,
@@ -91,6 +91,37 @@ function requireConfigBaseHash(
   return true;
 }
 
+function loadSchemaWithPlugins(): ConfigSchemaResponse {
+  const cfg = loadConfig();
+  const workspaceDir = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
+  const pluginRegistry = loadOpenClawPlugins({
+    config: cfg,
+    workspaceDir,
+    logger: {
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+      debug: () => {},
+    },
+  });
+  return buildConfigSchema({
+    plugins: pluginRegistry.plugins.map((plugin) => ({
+      id: plugin.id,
+      name: plugin.name,
+      description: plugin.description,
+      configUiHints: plugin.configUiHints,
+      configSchema: plugin.configJsonSchema,
+    })),
+    channels: listChannelPlugins().map((entry) => ({
+      id: entry.id,
+      label: entry.meta.label,
+      description: entry.meta.blurb,
+      configSchema: entry.configSchema?.schema,
+      configUiHints: entry.configSchema?.uiHints,
+    })),
+  });
+}
+
 export const configHandlers: GatewayRequestHandlers = {
   "config.get": async ({ params, respond }) => {
     if (!validateConfigGetParams(params)) {
@@ -105,7 +136,8 @@ export const configHandlers: GatewayRequestHandlers = {
       return;
     }
     const snapshot = await readConfigFileSnapshot();
-    respond(true, redactConfigSnapshot(snapshot), undefined);
+    const schema = loadSchemaWithPlugins();
+    respond(true, redactConfigSnapshot(snapshot, schema.uiHints), undefined);
   },
   "config.schema": ({ params, respond }) => {
     if (!validateConfigSchemaParams(params)) {
@@ -119,35 +151,7 @@ export const configHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    const cfg = loadConfig();
-    const workspaceDir = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
-    const pluginRegistry = loadOpenClawPlugins({
-      config: cfg,
-      workspaceDir,
-      logger: {
-        info: () => {},
-        warn: () => {},
-        error: () => {},
-        debug: () => {},
-      },
-    });
-    const schema = buildConfigSchema({
-      plugins: pluginRegistry.plugins.map((plugin) => ({
-        id: plugin.id,
-        name: plugin.name,
-        description: plugin.description,
-        configUiHints: plugin.configUiHints,
-        configSchema: plugin.configJsonSchema,
-      })),
-      channels: listChannelPlugins().map((entry) => ({
-        id: entry.id,
-        label: entry.meta.label,
-        description: entry.meta.blurb,
-        configSchema: entry.configSchema?.schema,
-        configUiHints: entry.configSchema?.uiHints,
-      })),
-    });
-    respond(true, schema, undefined);
+    respond(true, loadSchemaWithPlugins(), undefined);
   },
   "config.set": async ({ params, respond }) => {
     if (!validateConfigSetParams(params)) {
@@ -190,27 +194,19 @@ export const configHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    let restored: typeof validated.config;
-    try {
-      restored = restoreRedactedValues(
-        validated.config,
-        snapshot.config,
-      ) as typeof validated.config;
-    } catch (err) {
-      respond(
-        false,
-        undefined,
-        errorShape(ErrorCodes.INVALID_REQUEST, String(err instanceof Error ? err.message : err)),
-      );
-      return;
-    }
+    const schemaSet = loadSchemaWithPlugins();
+    const restored = restoreRedactedValues(
+      validated.config,
+      snapshot.config,
+      schemaSet.uiHints,
+    ) as typeof validated.config;
     await writeConfigFile(restored);
     respond(
       true,
       {
         ok: true,
         path: CONFIG_PATH,
-        config: redactConfigObject(restored),
+        config: redactConfigObject(restored, schemaSet.uiHints),
       },
       undefined,
     );
@@ -269,17 +265,8 @@ export const configHandlers: GatewayRequestHandlers = {
       return;
     }
     const merged = applyMergePatch(snapshot.config, parsedRes.parsed);
-    let restoredMerge: unknown;
-    try {
-      restoredMerge = restoreRedactedValues(merged, snapshot.config);
-    } catch (err) {
-      respond(
-        false,
-        undefined,
-        errorShape(ErrorCodes.INVALID_REQUEST, String(err instanceof Error ? err.message : err)),
-      );
-      return;
-    }
+    const schemaPatch = loadSchemaWithPlugins();
+    const restoredMerge = restoreRedactedValues(merged, snapshot.config, schemaPatch.uiHints);
     const migrated = applyLegacyMigrations(restoredMerge);
     const resolved = migrated.next ?? restoredMerge;
     const validated = validateConfigObjectWithPlugins(resolved);
@@ -336,7 +323,7 @@ export const configHandlers: GatewayRequestHandlers = {
       {
         ok: true,
         path: CONFIG_PATH,
-        config: redactConfigObject(validated.config),
+        config: redactConfigObject(validated.config, schemaPatch.uiHints),
         restart,
         sentinel: {
           path: sentinelPath,
@@ -379,7 +366,9 @@ export const configHandlers: GatewayRequestHandlers = {
       respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, parsedRes.error));
       return;
     }
-    const validated = validateConfigObjectWithPlugins(parsedRes.parsed);
+    const schemaApply = loadSchemaWithPlugins();
+    const restored = restoreRedactedValues(parsedRes.parsed, snapshot.config, schemaApply.uiHints);
+    const validated = validateConfigObjectWithPlugins(restored);
     if (!validated.ok) {
       respond(
         false,
@@ -390,21 +379,7 @@ export const configHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    let restoredApply: typeof validated.config;
-    try {
-      restoredApply = restoreRedactedValues(
-        validated.config,
-        snapshot.config,
-      ) as typeof validated.config;
-    } catch (err) {
-      respond(
-        false,
-        undefined,
-        errorShape(ErrorCodes.INVALID_REQUEST, String(err instanceof Error ? err.message : err)),
-      );
-      return;
-    }
-    await writeConfigFile(restoredApply);
+    await writeConfigFile(validated.config);
 
     const sessionKey =
       typeof (params as { sessionKey?: unknown }).sessionKey === "string"
@@ -447,7 +422,7 @@ export const configHandlers: GatewayRequestHandlers = {
       {
         ok: true,
         path: CONFIG_PATH,
-        config: redactConfigObject(restoredApply),
+        config: redactConfigObject(validated.config, schemaApply.uiHints),
         restart,
         sentinel: {
           path: sentinelPath,
