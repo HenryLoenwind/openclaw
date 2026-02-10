@@ -191,14 +191,45 @@ function buildBaseHints(): ConfigUiHints {
   return hints;
 }
 
-function applySensitiveHints(hints: ConfigUiHints): ConfigUiHints {
+function applySensitiveHints(
+  hints: ConfigUiHints,
+  allowedKeys?: ReadonlySet<string>,
+): ConfigUiHints {
   const next = { ...hints };
   for (const key of Object.keys(next)) {
+    if (allowedKeys && !allowedKeys.has(key)) {
+      continue;
+    }
+    if (next[key]?.sensitive !== undefined) {
+      continue;
+    }
     if (isSensitivePath(key)) {
       next[key] = { ...next[key], sensitive: true };
     }
   }
   return next;
+}
+
+function collectExtensionHintKeys(
+  hints: ConfigUiHints,
+  plugins: PluginUiMetadata[],
+  channels: ChannelUiMetadata[],
+): Set<string> {
+  const pluginPrefixes = plugins
+    .map((plugin) => plugin.id.trim())
+    .filter(Boolean)
+    .map((id) => `plugins.entries.${id}`);
+  const channelPrefixes = channels
+    .map((channel) => channel.id.trim())
+    .filter(Boolean)
+    .map((id) => `channels.${id}`);
+  const prefixes = [...pluginPrefixes, ...channelPrefixes];
+
+  return new Set(
+    Object.keys(hints).filter((key) =>
+      prefixes.some((prefix) => key === prefix || key.startsWith(`${prefix}.`)),
+    ),
+  );
 }
 
 function applyPluginHints(hints: ConfigUiHints, plugins: PluginUiMetadata[]): ConfigUiHints {
@@ -491,12 +522,16 @@ export function buildConfigSchema(params?: {
   if (plugins.length === 0 && channels.length === 0) {
     return base;
   }
-  const mergedHints = applySensitiveHints(
-    applyHeartbeatTargetHints(
-      applyChannelHints(applyPluginHints(base.uiHints, plugins), channels),
-      channels,
-    ),
+  const mergedWithoutSensitiveHints = applyHeartbeatTargetHints(
+    applyChannelHints(applyPluginHints(base.uiHints, plugins), channels),
+    channels,
   );
+  const extensionHintKeys = collectExtensionHintKeys(
+    mergedWithoutSensitiveHints,
+    plugins,
+    channels,
+  );
+  const mergedHints = applySensitiveHints(mergedWithoutSensitiveHints, extensionHintKeys);
   const mergedSchema = applyChannelSchemas(applyPluginSchemas(base.schema, plugins), channels);
   return {
     ...base,
