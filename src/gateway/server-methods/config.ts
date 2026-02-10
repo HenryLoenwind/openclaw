@@ -91,7 +91,12 @@ function requireConfigBaseHash(
   return true;
 }
 
+let cachedSchemaWithPlugins: ConfigSchemaResponse | null = null;
+
 function loadSchemaWithPlugins(): ConfigSchemaResponse {
+  if (cachedSchemaWithPlugins) {
+    return cachedSchemaWithPlugins;
+  }
   const cfg = loadConfig();
   const workspaceDir = resolveAgentWorkspaceDir(cfg, resolveDefaultAgentId(cfg));
   const pluginRegistry = loadOpenClawPlugins({
@@ -104,7 +109,7 @@ function loadSchemaWithPlugins(): ConfigSchemaResponse {
       debug: () => {},
     },
   });
-  return buildConfigSchema({
+  cachedSchemaWithPlugins = buildConfigSchema({
     plugins: pluginRegistry.plugins.map((plugin) => ({
       id: plugin.id,
       name: plugin.name,
@@ -120,6 +125,7 @@ function loadSchemaWithPlugins(): ConfigSchemaResponse {
       configUiHints: entry.configSchema?.uiHints,
     })),
   });
+  return cachedSchemaWithPlugins;
 }
 
 export const configHandlers: GatewayRequestHandlers = {
