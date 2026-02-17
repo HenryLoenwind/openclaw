@@ -12,7 +12,7 @@ public final class ExampleMain {
 
     GatewayCredentials credentials = new GatewayCredentials(token, password);
     OpenClawGatewayClient client =
-        new OpenClawGatewayClient(URI.create(gatewayUrl), credentials, "java-app", "0.1.0");
+			new OpenClawGatewayClient(URI.create(gatewayUrl), credentials, /* "java-app" */"openclaw-macos", "0.1.0");
 
     client.setConnectionStatusListener(
         (status, message, cause) -> {

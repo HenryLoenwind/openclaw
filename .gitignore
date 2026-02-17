@@ -91,3 +91,9 @@ package-lock.json
 
 # Local iOS signing overrides
 apps/ios/LocalSigning.xcconfig
+
+.project
+
+java-gateway-client/.classpath
+
+java-gateway-client/.settings/

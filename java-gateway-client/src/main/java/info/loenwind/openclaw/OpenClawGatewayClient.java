@@ -1,12 +1,10 @@
 package info.loenwind.openclaw;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -17,8 +15,90 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 public class OpenClawGatewayClient {
   private static final int PROTOCOL_VERSION = 3;
+
+	enum SCOPE {
+		ADMIN, READ, WRITE, APPROVALS, PAIRING;
+
+		@Override
+		public String toString() {
+			return "operator." + super.toString().toLowerCase(Locale.ENGLISH);
+		}
+	}
+
+//  const APPROVAL_METHODS = new Set([
+//    "exec.approval.request",
+//    "exec.approval.waitDecision",
+//    "exec.approval.resolve",
+//  ]);
+//  const NODE_ROLE_METHODS = new Set(["node.invoke.result", "node.event", "skills.bins"]);
+//  const PAIRING_METHODS = new Set([
+//    "node.pair.request",
+//    "node.pair.list",
+//    "node.pair.approve",
+//    "node.pair.reject",
+//    "node.pair.verify",
+//    "device.pair.list",
+//    "device.pair.approve",
+//    "device.pair.reject",
+//    "device.token.rotate",
+//    "device.token.revoke",
+//    "node.rename",
+//  ]);
+//  const ADMIN_METHOD_PREFIXES = ["exec.approvals."];
+//  const READ_METHODS = new Set([
+//    "health",
+//    "logs.tail",
+//    "channels.status",
+//    "status",
+//    "usage.status",
+//    "usage.cost",
+//    "tts.status",
+//    "tts.providers",
+//    "models.list",
+//    "agents.list",
+//    "agent.identity.get",
+//    "skills.status",
+//    "voicewake.get",
+//    "sessions.list",
+//    "sessions.preview",
+//    "cron.list",
+//    "cron.status",
+//    "cron.runs",
+//    "system-presence",
+//    "last-heartbeat",
+//    "node.list",
+//    "node.describe",
+//    "chat.history",
+//    "config.get",
+//    "talk.config",
+//    "mesh.plan",
+//    "mesh.status",
+//  ]);
+//  const WRITE_METHODS = new Set([
+//    "send",
+//    "agent",
+//    "agent.wait",
+//    "wake",
+//    "talk.mode",
+//    "tts.enable",
+//    "tts.disable",
+//    "tts.convert",
+//    "tts.setProvider",
+//    "voicewake.set",
+//    "node.invoke",
+//    "chat.send",
+//    "chat.abort",
+//    "browser.request",
+//    "mesh.plan.auto",
+//    "mesh.run",
+//    "mesh.retry",
+//  ]);
 
   private final URI gatewayUri;
   private final GatewayCredentials credentials;
@@ -133,6 +213,8 @@ public class OpenClawGatewayClient {
     }
 
     connectParams.put("role", "operator");
+	connectParams.putArray("scopes").add(SCOPE.READ.toString());
+
     call("connect", connectParams)
         .thenAccept(
             response -> {
@@ -149,6 +231,7 @@ public class OpenClawGatewayClient {
               Throwable actual = unwrap(error);
               publishStatus(ConnectionStatus.RECONNECTING, "Connect handshake failed, retrying", actual);
               WebSocket ws = webSocket;
+						webSocket = null;
               if (ws != null) {
                 ws.abort();
               }
@@ -201,6 +284,7 @@ public class OpenClawGatewayClient {
     @Override
     public void onOpen(WebSocket webSocket) {
       WebSocket.Listener.super.onOpen(webSocket);
+		OpenClawGatewayClient.this.webSocket = webSocket;
       helloReceived = false;
       startKeepAliveWatchdog();
       sendConnectFrame();
